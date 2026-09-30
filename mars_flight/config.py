@@ -44,7 +44,7 @@ STANDARD_GRAVITY_M_S2: float = 9.806_65
 ASCENT_INITIAL_MASS_KG: float = 500_000.0
 
 # Масса корабля без топлива, кг.
-ASCENT_DRY_MASS_KG: float = 20_000.0
+ASCENT_DRY_MASS_KG: float = 5_000.0
 
 # Эффективная скорость истечения топлива, м/с.
 ASCENT_EXHAUST_VELOCITY_M_S: float = 4_500.0
@@ -90,6 +90,53 @@ TRANSFER_POSITION_ABSOLUTE_TOLERANCE_M: float = 1.0
 
 # Абсолютная погрешность компонент скорости перелета, м/с.
 TRANSFER_VELOCITY_ABSOLUTE_TOLERANCE_M_S: float = 1.0e-6
+
+
+# Физические параметры посадки на Марс.
+# Гравитационный параметр Марса, м^3/с^2.
+MARS_GRAVITATIONAL_PARAMETER_M3_S2: float = 4.282_837_362e13
+
+# Средний радиус Марса, м.
+MARS_RADIUS_M: float = 3_389_500.0
+
+# Радиус сферы влияния Марса относительно его центра, м.
+MARS_INITIAL_RADIUS_M: float = MARS_ORBIT_RADIUS_M * (
+    MARS_GRAVITATIONAL_PARAMETER_M3_S2 / SUN_GRAVITATIONAL_PARAMETER_M3_S2
+) ** (2.0 / 5.0)
+
+# Допустимое расхождение с радиусом орбиты Марса при соединении этапов, м.
+MARS_ORBIT_MATCH_TOLERANCE_M: float = 1_000.0
+
+# Допустимое отклонение точки остановки от поверхности Марса, м.
+MARS_CONTACT_ALTITUDE_TOLERANCE_M: float = 1.0
+
+# Максимальная тяга посадочного двигателя, Н.
+MARS_MAXIMUM_THRUST_N: float = 1_000_000.0
+
+# Предельная перегрузка при посадке, в единицах g0.
+MARS_MAXIMUM_LOAD_FACTOR: float = 3.0
+
+# Настройки численного интегрирования посадки.
+# Предельная продолжительность расчета посадки, с.
+MARS_MAXIMUM_TIME_S: float = 5.0 * SECONDS_PER_DAY
+
+# Максимальный шаг свободного падения, с.
+MARS_COAST_MAXIMUM_STEP_S: float = 300.0
+
+# Максимальный шаг торможения, с.
+MARS_BURN_MAXIMUM_STEP_S: float = 1.0
+
+# Относительная погрешность интегрирования посадки.
+MARS_RELATIVE_TOLERANCE: float = 1.0e-10
+
+# Абсолютная погрешность координаты, м.
+MARS_POSITION_ABSOLUTE_TOLERANCE_M: float = 1.0e-3
+
+# Абсолютная погрешность радиальной скорости, м/с.
+MARS_VELOCITY_ABSOLUTE_TOLERANCE_M_S: float = 1.0e-6
+
+# Абсолютная погрешность массы, кг.
+MARS_MASS_ABSOLUTE_TOLERANCE_KG: float = 1.0e-3
 
 
 @dataclass(frozen=True)
@@ -224,6 +271,46 @@ class TransferIntegrationParameters:
             raise ValueError("Максимальный шаг не должен превышать время расчета")
 
 
+@dataclass(frozen=True)
+class MarsLandingParameters:
+    """Параметры вертикальной посадки на Марс в единицах СИ."""
+
+    mars_gravitational_parameter_m3_s2: float
+    mars_radius_m: float
+    initial_radius_m: float
+    contact_altitude_tolerance_m: float
+    dry_mass_kg: float
+    exhaust_velocity_m_s: float
+    maximum_thrust_n: float
+    maximum_load_factor: float
+    standard_gravity_m_s2: float
+    maximum_time_s: float
+    coast_maximum_step_s: float
+    burn_maximum_step_s: float
+    relative_tolerance: float
+    position_absolute_tolerance_m: float
+    velocity_absolute_tolerance_m_s: float
+    mass_absolute_tolerance_kg: float
+
+    def __post_init__(self) -> None:
+        self.validate()
+
+    def validate(self) -> None:
+        values = vars(self)
+        for name, value in values.items():
+            if not isfinite(value) or value <= 0.0:
+                raise ValueError(f"{name}: ожидалось конечное положительное число")
+        if self.initial_radius_m <= self.mars_radius_m:
+            raise ValueError("Начальный радиус должен превышать радиус Марса")
+        if self.relative_tolerance >= 1.0:
+            raise ValueError("Относительная погрешность должна быть меньше единицы")
+        if (
+            max(self.coast_maximum_step_s, self.burn_maximum_step_s)
+            > self.maximum_time_s
+        ):
+            raise ValueError("Шаг интегрирования не должен превышать время расчёта")
+
+
 # Параметры стандартного перелета Земля — Марс.
 DEFAULT_PARAMETERS: MissionParameters = MissionParameters(
     sun_gravitational_parameter_m3_s2=SUN_GRAVITATIONAL_PARAMETER_M3_S2,
@@ -258,4 +345,24 @@ DEFAULT_TRANSFER_INTEGRATION_PARAMETERS: TransferIntegrationParameters = (
         position_absolute_tolerance_m=TRANSFER_POSITION_ABSOLUTE_TOLERANCE_M,
         velocity_absolute_tolerance_m_s=TRANSFER_VELOCITY_ABSOLUTE_TOLERANCE_M_S,
     )
+)
+
+# Параметры стандартной посадки на Марс.
+DEFAULT_MARS_LANDING_PARAMETERS: MarsLandingParameters = MarsLandingParameters(
+    mars_gravitational_parameter_m3_s2=MARS_GRAVITATIONAL_PARAMETER_M3_S2,
+    mars_radius_m=MARS_RADIUS_M,
+    initial_radius_m=MARS_INITIAL_RADIUS_M,
+    contact_altitude_tolerance_m=MARS_CONTACT_ALTITUDE_TOLERANCE_M,
+    dry_mass_kg=ASCENT_DRY_MASS_KG,
+    exhaust_velocity_m_s=ASCENT_EXHAUST_VELOCITY_M_S,
+    maximum_thrust_n=MARS_MAXIMUM_THRUST_N,
+    maximum_load_factor=MARS_MAXIMUM_LOAD_FACTOR,
+    standard_gravity_m_s2=STANDARD_GRAVITY_M_S2,
+    maximum_time_s=MARS_MAXIMUM_TIME_S,
+    coast_maximum_step_s=MARS_COAST_MAXIMUM_STEP_S,
+    burn_maximum_step_s=MARS_BURN_MAXIMUM_STEP_S,
+    relative_tolerance=MARS_RELATIVE_TOLERANCE,
+    position_absolute_tolerance_m=MARS_POSITION_ABSOLUTE_TOLERANCE_M,
+    velocity_absolute_tolerance_m_s=MARS_VELOCITY_ABSOLUTE_TOLERANCE_M_S,
+    mass_absolute_tolerance_kg=MARS_MASS_ABSOLUTE_TOLERANCE_KG,
 )
