@@ -9,7 +9,7 @@ from .config import MissionParameters
 
 @dataclass(frozen=True)
 class HohmannTransfer:
-    """Параметры перелёта Гомана в единицах СИ."""
+    """Параметры перелета Гомана в единицах СИ."""
 
     semi_major_axis_m: float
     earth_orbital_speed_m_s: float
