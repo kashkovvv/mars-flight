@@ -1,79 +1,105 @@
-"""Запуск аналитического расчета."""
+"""Запуск расчетов для реализованных этапов полета."""
+
+from math import sqrt
 
 from .config import (
-    DEFAULT_PARAMETERS,
     DEFAULT_EARTH_ASCENT_PARAMETERS,
+    DEFAULT_PARAMETERS,
+    DEFAULT_TRANSFER_INTEGRATION_PARAMETERS,
+    KILOGRAMS_PER_TONNE,
     METRES_PER_KILOMETRE,
     METRES_PER_MILLION_KILOMETRES,
-    KILOGRAMS_PER_TONNE,
     SECONDS_PER_DAY,
 )
-from .theory import HohmannTransfer
 from .earth import EarthAscentModel
+from .theory import HohmannTransfer
+from .transfer import SolarTransferModel
 
 
 def main() -> None:
-    transfer = HohmannTransfer.from_parameters(DEFAULT_PARAMETERS)
-    ascent_model = EarthAscentModel(DEFAULT_EARTH_ASCENT_PARAMETERS)
-    ascent = ascent_model.simulate(transfer.departure_excess_speed_m_s)
+    benchmark = HohmannTransfer.from_parameters(DEFAULT_PARAMETERS)
+    ascent = EarthAscentModel(DEFAULT_EARTH_ASCENT_PARAMETERS).simulate(
+        benchmark.departure_excess_speed_m_s
+    )
 
-    semi_major_axis_million_km = (
-        transfer.semi_major_axis_m / METRES_PER_MILLION_KILOMETRES
-    )
-    earth_orbital_speed_km_s = transfer.earth_orbital_speed_m_s / METRES_PER_KILOMETRE
-    mars_orbital_speed_km_s = transfer.mars_orbital_speed_m_s / METRES_PER_KILOMETRE
-    departure_heliocentric_speed_km_s = (
-        transfer.departure_heliocentric_speed_m_s / METRES_PER_KILOMETRE
-    )
-    arrival_heliocentric_speed_km_s = (
-        transfer.arrival_heliocentric_speed_m_s / METRES_PER_KILOMETRE
-    )
-    departure_excess_speed_km_s = (
-        transfer.departure_excess_speed_m_s / METRES_PER_KILOMETRE
-    )
-    arrival_relative_velocity_km_s = (
-        transfer.arrival_relative_velocity_m_s / METRES_PER_KILOMETRE
-    )
-    arrival_relative_speed_km_s = (
-        transfer.arrival_relative_speed_m_s / METRES_PER_KILOMETRE
-    )
-    time_of_flight_days = transfer.time_of_flight_s / SECONDS_PER_DAY
+    final_earth_specific_energy_m2_s2 = float(ascent.specific_energy_m2_s2[-1])
+    if final_earth_specific_energy_m2_s2 <= 0.0:
+        raise RuntimeError("Взлет не обеспечил положительную энергию ухода")
+    actual_excess_speed_m_s = sqrt(2.0 * final_earth_specific_energy_m2_s2)
+
+    numerical_transfer = SolarTransferModel(
+        DEFAULT_PARAMETERS, DEFAULT_TRANSFER_INTEGRATION_PARAMETERS
+    ).simulate(actual_excess_speed_m_s)
 
     print("Аналитический перелет Земля — Марс")
-    print(f"  Большая полуось перехода: {semi_major_axis_million_km:.3f} млн км")
-    print(f"  Орбитальная скорость Земли: {earth_orbital_speed_km_s:.3f} км/с")
+    print(
+        "  Большая полуось перехода: "
+        f"{benchmark.semi_major_axis_m / METRES_PER_MILLION_KILOMETRES:.3f} млн км"
+    )
+    print(
+        "  Орбитальная скорость Земли: "
+        f"{benchmark.earth_orbital_speed_m_s / METRES_PER_KILOMETRE:.3f} км/с"
+    )
     print(
         "  Гелиоцентрическая скорость при старте: "
-        f"{departure_heliocentric_speed_km_s:.3f} км/с"
+        f"{benchmark.departure_heliocentric_speed_m_s / METRES_PER_KILOMETRE:.3f} км/с"
     )
-    print(f"  Избыточная скорость ухода v_inf: {departure_excess_speed_km_s:+.3f} км/с")
-    print(f"  Орбитальная скорость Марса: {mars_orbital_speed_km_s:.3f} км/с")
+    print(
+        "  Избыточная скорость ухода v_inf: "
+        f"{benchmark.departure_excess_speed_m_s / METRES_PER_KILOMETRE:.3f} км/с"
+    )
+    print(
+        "  Орбитальная скорость Марса: "
+        f"{benchmark.mars_orbital_speed_m_s / METRES_PER_KILOMETRE:.3f} км/с"
+    )
     print(
         "  Гелиоцентрическая скорость при прибытии: "
-        f"{arrival_heliocentric_speed_km_s:.3f} км/с"
+        f"{benchmark.arrival_heliocentric_speed_m_s / METRES_PER_KILOMETRE:.3f} км/с"
     )
     print(
         "  Проекция скорости относительно Марса: "
-        f"{arrival_relative_velocity_km_s:+.3f} км/с"
+        f"{benchmark.arrival_relative_velocity_m_s / METRES_PER_KILOMETRE:+.3f} км/с"
     )
     print(
-        f"  Модуль скорости относительно Марса: {arrival_relative_speed_km_s:.3f} км/с"
+        "  Модуль скорости относительно Марса: "
+        f"{benchmark.arrival_relative_speed_m_s / METRES_PER_KILOMETRE:.3f} км/с"
     )
-    print(f"  Время перелета: {time_of_flight_days:.3f} суток")
-
-    final_altitude_km = ascent.final_altitude_m / METRES_PER_KILOMETRE
-    final_radial_velocity_km_s = ascent.final_radial_velocity_m_s / METRES_PER_KILOMETRE
-    final_mass_tonnes = ascent.final_mass_kg / KILOGRAMS_PER_TONNE
+    print(f"  Время перелета: {benchmark.time_of_flight_s / SECONDS_PER_DAY:.3f} суток")
 
     print()
-    print("Вертикальный взлёт с Земли")
+    print("Вертикальный взлет с Земли")
     print(f"  Продолжительность: {ascent.duration_s:.3f} с")
-    print(f"  Высота выключения двигателя: {final_altitude_km:.3f} км")
     print(
-        f"  Радиальная скорость при выключении: {final_radial_velocity_km_s:.3f} км/с"
+        "  Высота выключения двигателя: "
+        f"{ascent.final_altitude_m / METRES_PER_KILOMETRE:.3f} км"
     )
-    print(f"  Конечная масса: {final_mass_tonnes:.3f} т")
+    print(
+        "  Радиальная скорость при выключении: "
+        f"{ascent.final_radial_velocity_m_s / METRES_PER_KILOMETRE:.3f} км/с"
+    )
+    print(f"  Конечная масса: {ascent.final_mass_kg / KILOGRAMS_PER_TONNE:.3f} т")
     print(f"  Максимальная перегрузка: {ascent.maximum_load_factor:.3f} g")
+
+    print()
+    print("Численный перелет в поле Солнца")
+    print(
+        "  Продолжительность: "
+        f"{numerical_transfer.duration_s / SECONDS_PER_DAY:.3f} суток"
+    )
+    print(
+        "  Радиус в противоположной точке: "
+        f"{numerical_transfer.final_radius_m / METRES_PER_MILLION_KILOMETRES:.3f}"
+        " млн км"
+    )
+    print(
+        "  Гелиоцентрическая скорость: "
+        f"{numerical_transfer.final_heliocentric_speed_m_s / METRES_PER_KILOMETRE:.3f}"
+        " км/с"
+    )
+    print(
+        "  Разность радиусов в противоположной точке: "
+        f"{numerical_transfer.mars_orbit_radius_error_m:+.3f} м"
+    )
 
 
 if __name__ == "__main__":

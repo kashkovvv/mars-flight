@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from math import isfinite
 
 
+# Коэффициенты перевода единиц: используются только при выводе.
 # Количество секунд в сутках, с/сут.
 SECONDS_PER_DAY: float = 86_400.0
 
@@ -16,6 +17,7 @@ METRES_PER_MILLION_KILOMETRES: float = 1_000_000_000.0
 # Количество килограммов в тонне, кг/т.
 KILOGRAMS_PER_TONNE: float = 1_000.0
 
+# Параметры круговых орбит Земли и Марса в поле Солнца.
 # Астрономическая единица, м.
 ASTRONOMICAL_UNIT_M: float = 149_597_870_700.0
 
@@ -28,6 +30,7 @@ EARTH_ORBIT_RADIUS_M: float = ASTRONOMICAL_UNIT_M
 # Радиус круговой орбиты Марса, м.
 MARS_ORBIT_RADIUS_M: float = 1.523_679 * ASTRONOMICAL_UNIT_M
 
+# Физические параметры вертикального взлета с Земли.
 # Гравитационный параметр Земли, м^3/с^2.
 EARTH_GRAVITATIONAL_PARAMETER_M3_S2: float = 3.986_004_418e14
 
@@ -52,6 +55,7 @@ ASCENT_MAXIMUM_THRUST_N: float = 12_000_000.0
 # Предельная перегрузка штатного режима, в единицах g0.
 ASCENT_MAXIMUM_LOAD_FACTOR: float = 3.0
 
+# Настройки численного интегрирования взлета.
 # Предельная продолжительность расчета взлета, с.
 ASCENT_MAXIMUM_TIME_S: float = 1_000.0
 
@@ -71,9 +75,26 @@ ASCENT_VELOCITY_ABSOLUTE_TOLERANCE_M_S: float = 1.0e-6
 ASCENT_MASS_ABSOLUTE_TOLERANCE_KG: float = 1.0e-3
 
 
+# Настройки численного интегрирования перелета в поле Солнца.
+# Предельная продолжительность численного перелета, с.
+TRANSFER_MAXIMUM_TIME_S: float = 400.0 * SECONDS_PER_DAY
+
+# Максимальный шаг интегрирования перелета, с.
+TRANSFER_MAXIMUM_STEP_S: float = 0.25 * SECONDS_PER_DAY
+
+# Относительная погрешность интегрирования перелета.
+TRANSFER_RELATIVE_TOLERANCE: float = 1.0e-10
+
+# Абсолютная погрешность координат перелета, м.
+TRANSFER_POSITION_ABSOLUTE_TOLERANCE_M: float = 1.0
+
+# Абсолютная погрешность компонент скорости перелета, м/с.
+TRANSFER_VELOCITY_ABSOLUTE_TOLERANCE_M_S: float = 1.0e-6
+
+
 @dataclass(frozen=True)
 class MissionParameters:
-    """Параметры аналитической модели в единицах СИ."""
+    """Параметры круговых орбит и солнечного перелета в единицах СИ."""
 
     sun_gravitational_parameter_m3_s2: float
     earth_orbit_radius_m: float
@@ -172,6 +193,38 @@ class EarthAscentParameters:
             raise ValueError("Начальной тяги недостаточно для отрыва от Земли")
 
 
+@dataclass(frozen=True)
+class TransferIntegrationParameters:
+    """Параметры численного решения пассивного перелета в СИ."""
+
+    maximum_time_s: float
+    maximum_step_s: float
+    relative_tolerance: float
+    position_absolute_tolerance_m: float
+    velocity_absolute_tolerance_m_s: float
+
+    def __post_init__(self) -> None:
+        self.validate()
+
+    def validate(self) -> None:
+        values: dict[str, float] = {
+            "maximum_time_s": self.maximum_time_s,
+            "maximum_step_s": self.maximum_step_s,
+            "relative_tolerance": self.relative_tolerance,
+            "position_absolute_tolerance_m": self.position_absolute_tolerance_m,
+            "velocity_absolute_tolerance_m_s": self.velocity_absolute_tolerance_m_s,
+        }
+        for name, value in values.items():
+            if not isfinite(value) or value <= 0.0:
+                raise ValueError(f"{name}: ожидалось конечное положительное число")
+
+        if self.relative_tolerance >= 1.0:
+            raise ValueError("Относительная погрешность должна быть меньше единицы")
+        if self.maximum_step_s > self.maximum_time_s:
+            raise ValueError("Максимальный шаг не должен превышать время расчета")
+
+
+# Параметры стандартного перелета Земля — Марс.
 DEFAULT_PARAMETERS: MissionParameters = MissionParameters(
     sun_gravitational_parameter_m3_s2=SUN_GRAVITATIONAL_PARAMETER_M3_S2,
     earth_orbit_radius_m=EARTH_ORBIT_RADIUS_M,
@@ -194,4 +247,15 @@ DEFAULT_EARTH_ASCENT_PARAMETERS: EarthAscentParameters = EarthAscentParameters(
     position_absolute_tolerance_m=ASCENT_POSITION_ABSOLUTE_TOLERANCE_M,
     velocity_absolute_tolerance_m_s=ASCENT_VELOCITY_ABSOLUTE_TOLERANCE_M_S,
     mass_absolute_tolerance_kg=ASCENT_MASS_ABSOLUTE_TOLERANCE_KG,
+)
+
+# Настройки стандартного численного перелета.
+DEFAULT_TRANSFER_INTEGRATION_PARAMETERS: TransferIntegrationParameters = (
+    TransferIntegrationParameters(
+        maximum_time_s=TRANSFER_MAXIMUM_TIME_S,
+        maximum_step_s=TRANSFER_MAXIMUM_STEP_S,
+        relative_tolerance=TRANSFER_RELATIVE_TOLERANCE,
+        position_absolute_tolerance_m=TRANSFER_POSITION_ABSOLUTE_TOLERANCE_M,
+        velocity_absolute_tolerance_m_s=TRANSFER_VELOCITY_ABSOLUTE_TOLERANCE_M_S,
+    )
 )
