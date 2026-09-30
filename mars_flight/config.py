@@ -17,6 +17,9 @@ METRES_PER_MILLION_KILOMETRES: float = 1_000_000_000.0
 # Количество килограммов в тонне, кг/т.
 KILOGRAMS_PER_TONNE: float = 1_000.0
 
+# Количество ньютонов в килоньютоне, Н/кН.
+NEWTONS_PER_KILONEWTON: float = 1_000.0
+
 # Параметры круговых орбит Земли и Марса в поле Солнца.
 # Астрономическая единица, м.
 ASTRONOMICAL_UNIT_M: float = 149_597_870_700.0

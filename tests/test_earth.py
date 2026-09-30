@@ -151,6 +151,20 @@ class EarthAscentModelTests(unittest.TestCase):
             self.result.maximum_load_factor,
             (parameters.maximum_load_factor + LOAD_FACTOR_ABSOLUTE_TOLERANCE),
         )
+        self.assertEqual(self.result.thrust_n.shape, self.result.time_s.shape)
+        self.assertAlmostEqual(
+            float(self.result.thrust_n[0]),
+            parameters.maximum_thrust_n,
+            delta=1.0e-6,
+        )
+        self.assertLessEqual(
+            float(np.max(self.result.thrust_n)),
+            parameters.maximum_thrust_n + 1.0e-6,
+        )
+        self.assertLess(
+            float(self.result.thrust_n[-1]),
+            float(self.result.thrust_n[0]),
+        )
         self.assertGreater(
             self.result.final_altitude_m,
             0.0,

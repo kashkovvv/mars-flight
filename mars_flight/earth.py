@@ -19,6 +19,7 @@ class EarthAscentResult:
     altitude_m: NDArray[np.float64]
     radial_velocity_m_s: NDArray[np.float64]
     mass_kg: NDArray[np.float64]
+    thrust_n: NDArray[np.float64]
     load_factor: NDArray[np.float64]
     specific_energy_m2_s2: NDArray[np.float64]
     target_excess_speed_m_s: float
@@ -127,10 +128,11 @@ class EarthAscentModel:
         mass_kg = solution.y[2].astype(np.float64, copy=False)
 
         altitude_m = radius_m - self.parameters.earth_radius_m
-        load_factor = np.array(
-            [self._load_factor(float(current_mass_kg)) for current_mass_kg in mass_kg],
+        thrust_n = np.array(
+            [self._thrust_n(float(current_mass_kg)) for current_mass_kg in mass_kg],
             dtype=np.float64,
         )
+        load_factor = thrust_n / (mass_kg * self.parameters.standard_gravity_m_s2)
         specific_energy_m2_s2 = (
             0.5 * radial_velocity_m_s**2
             - self.parameters.earth_gravitational_parameter_m3_s2 / radius_m
@@ -142,6 +144,7 @@ class EarthAscentModel:
             altitude_m=altitude_m,
             radial_velocity_m_s=radial_velocity_m_s,
             mass_kg=mass_kg,
+            thrust_n=thrust_n,
             load_factor=load_factor,
             specific_energy_m2_s2=specific_energy_m2_s2,
             target_excess_speed_m_s=target_excess_speed_m_s,
@@ -158,11 +161,6 @@ class EarthAscentModel:
         )
 
         return min(self.parameters.maximum_thrust_n, load_limited_thrust_n)
-
-    def _load_factor(self, mass_kg: float) -> float:
-        return self._thrust_n(mass_kg) / (
-            mass_kg * self.parameters.standard_gravity_m_s2
-        )
 
     def _derivatives(
         self, _time_s: float, state: NDArray[np.float64]

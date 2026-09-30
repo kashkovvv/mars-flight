@@ -1,6 +1,11 @@
 """Запуск расчетов для реализованных этапов полета."""
 
-from math import hypot, sqrt
+from dataclasses import asdict
+from datetime import datetime
+import json
+from pathlib import Path
+
+from matplotlib import pyplot as plt
 
 from .config import (
     DEFAULT_EARTH_ASCENT_PARAMETERS,
@@ -13,44 +18,24 @@ from .config import (
     METRES_PER_MILLION_KILOMETRES,
     SECONDS_PER_DAY,
 )
-from .earth import EarthAscentModel
-from .mars import MarsLandingModel
-from .theory import HohmannTransfer
-from .transfer import SolarTransferModel
+from .mission import MissionModel
+from .plots import create_mission_figures
 
 
 def main() -> None:
-    benchmark = HohmannTransfer.from_parameters(DEFAULT_PARAMETERS)
-    ascent = EarthAscentModel(DEFAULT_EARTH_ASCENT_PARAMETERS).simulate(
-        benchmark.departure_excess_speed_m_s
+    model = MissionModel(
+        mission_parameters=DEFAULT_PARAMETERS,
+        earth_ascent_parameters=DEFAULT_EARTH_ASCENT_PARAMETERS,
+        transfer_integration_parameters=DEFAULT_TRANSFER_INTEGRATION_PARAMETERS,
+        mars_landing_parameters=DEFAULT_MARS_LANDING_PARAMETERS,
+        mars_orbit_match_tolerance_m=MARS_ORBIT_MATCH_TOLERANCE_M,
     )
-
-    final_earth_specific_energy_m2_s2 = float(ascent.specific_energy_m2_s2[-1])
-    if final_earth_specific_energy_m2_s2 <= 0.0:
-        raise RuntimeError("Взлет не обеспечил положительную энергию ухода")
-    actual_excess_speed_m_s = sqrt(2.0 * final_earth_specific_energy_m2_s2)
-
-    numerical_transfer = SolarTransferModel(
-        DEFAULT_PARAMETERS, DEFAULT_TRANSFER_INTEGRATION_PARAMETERS
-    ).simulate(actual_excess_speed_m_s)
-
-    if (
-        abs(numerical_transfer.mars_orbit_radius_error_m)
-        > MARS_ORBIT_MATCH_TOLERANCE_M
-    ):
-        raise RuntimeError("Корабль не достиг радиуса орбиты Марса")
-
-    mars_orbital_speed_m_s = sqrt(
-        DEFAULT_PARAMETERS.sun_gravitational_parameter_m3_s2
-        / DEFAULT_PARAMETERS.mars_orbit_radius_m
-    )
-    arrival_relative_speed_m_s = hypot(
-        numerical_transfer.final_radial_velocity_m_s,
-        numerical_transfer.final_tangential_velocity_m_s - mars_orbital_speed_m_s,
-    )
-    landing = MarsLandingModel(DEFAULT_MARS_LANDING_PARAMETERS).simulate(
-        arrival_relative_speed_m_s, ascent.final_mass_kg
-    )
+    result = model.simulate()
+    benchmark = result.benchmark
+    ascent = result.ascent
+    numerical_transfer = result.transfer
+    landing = result.landing
+    arrival_relative_speed_m_s = result.arrival_relative_speed_m_s
 
     print("Аналитический перелет Земля — Марс")
     print(
@@ -144,6 +129,40 @@ def main() -> None:
     print(f"  Скорость контакта: {abs(landing.final_radial_velocity_m_s):.6f} м/с")
     print(f"  Конечная масса: {landing.final_mass_kg / KILOGRAMS_PER_TONNE:.3f} т")
     print(f"  Максимальная перегрузка: {landing.maximum_load_factor:.3f} g")
+
+    figures = create_mission_figures(
+        ascent, numerical_transfer, landing, model.mission_parameters
+    )
+    try:
+        generated_at = datetime.now().astimezone()
+        run_directory = Path("results") / generated_at.strftime(
+            "%Y-%m-%d_%H-%M-%S_%f"
+        )
+        run_directory.mkdir(parents=True)
+
+        for name, figure in figures.items():
+            figure.savefig(run_directory / f"{name}.png", dpi=180)
+
+        parameters = {
+            "generated_at": generated_at.isoformat(timespec="microseconds"),
+            "mission": asdict(model.mission_parameters),
+            "earth_ascent": asdict(model.earth_ascent_parameters),
+            "solar_transfer": asdict(model.transfer_integration_parameters),
+            "mars_landing": asdict(model.mars_landing_parameters),
+            "mars_orbit_match_tolerance_m": model.mars_orbit_match_tolerance_m,
+        }
+        with (run_directory / "parameters.json").open(
+            "w", encoding="utf-8"
+        ) as stream:
+            json.dump(parameters, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+
+        print(f"\nГрафики и параметры сохранены в {run_directory}")
+        if plt.get_backend().lower() != "agg":
+            plt.show()
+    finally:
+        for figure in figures.values():
+            plt.close(figure)
 
 
 if __name__ == "__main__":
