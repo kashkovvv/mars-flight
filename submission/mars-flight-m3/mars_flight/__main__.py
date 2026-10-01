@@ -51,7 +51,7 @@ def main() -> None:
         f"{benchmark.departure_heliocentric_speed_m_s / METRES_PER_KILOMETRE:.3f} км/с"
     )
     print(
-        "  Избыточная скорость ухода v_inf: "
+        "  Избыточная скорость ухода: "
         f"{benchmark.departure_excess_speed_m_s / METRES_PER_KILOMETRE:.3f} км/с"
     )
     print(
