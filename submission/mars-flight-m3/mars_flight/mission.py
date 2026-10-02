@@ -51,9 +51,7 @@ class MissionModel:
             benchmark.departure_excess_speed_m_s
         )
 
-        final_earth_specific_energy_m2_s2 = float(
-            ascent.specific_energy_m2_s2[-1]
-        )
+        final_earth_specific_energy_m2_s2 = float(ascent.specific_energy_m2_s2[-1])
         if (
             not isfinite(final_earth_specific_energy_m2_s2)
             or final_earth_specific_energy_m2_s2 <= 0.0

@@ -90,9 +90,7 @@ class MarsLandingModel:
         if ignition_radius >= p.initial_radius_m:
             raise ValueError("Высоты для торможения при заданной тяге недостаточно")
 
-        initial_velocity = -sqrt(
-            speed_squared + 2.0 * mu / p.initial_radius_m
-        )
+        initial_velocity = -sqrt(speed_squared + 2.0 * mu / p.initial_radius_m)
         initial_state = np.array(
             (p.initial_radius_m, initial_velocity, initial_mass_kg),
             dtype=np.float64,
@@ -160,10 +158,7 @@ class MarsLandingModel:
             raise RuntimeError("Топливо закончилось до мягкой посадки")
         if burn.t_events[0].size == 0:
             raise RuntimeError("Скорость не обнулилась за заданное время")
-        if (
-            abs(float(burn.y[0, -1]) - radius)
-            > p.contact_altitude_tolerance_m
-        ):
+        if abs(float(burn.y[0, -1]) - radius) > p.contact_altitude_tolerance_m:
             raise RuntimeError("Скорость обнулилась вне поверхности Марса")
 
         time_s = np.concatenate((coast.t, burn.t[1:])).astype(np.float64, copy=False)
@@ -205,7 +200,8 @@ class MarsLandingModel:
                 radial_velocity_m_s,
                 thrust_acceleration_m_s2
                 - self.parameters.mars_gravitational_parameter_m3_s2 / radius_m**2,
-                -mass_kg * thrust_acceleration_m_s2
+                -mass_kg
+                * thrust_acceleration_m_s2
                 / self.parameters.exhaust_velocity_m_s,
             ),
             dtype=np.float64,

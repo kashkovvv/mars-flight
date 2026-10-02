@@ -113,10 +113,7 @@ def main() -> None:
         "  Скорость подлета относительно Марса: "
         f"{arrival_relative_speed_m_s / METRES_PER_KILOMETRE:.3f} км/с"
     )
-    print(
-        "  Начальная высота: "
-        f"{landing.altitude_m[0] / METRES_PER_KILOMETRE:.3f} км"
-    )
+    print(f"  Начальная высота: {landing.altitude_m[0] / METRES_PER_KILOMETRE:.3f} км")
     print(
         "  Высота включения двигателя: "
         f"{landing.ignition_altitude_m / METRES_PER_KILOMETRE:.3f} км"
@@ -135,9 +132,7 @@ def main() -> None:
     )
     try:
         generated_at = datetime.now().astimezone()
-        run_directory = Path("results") / generated_at.strftime(
-            "%Y-%m-%d_%H-%M-%S_%f"
-        )
+        run_directory = Path("results") / generated_at.strftime("%Y-%m-%d_%H-%M-%S_%f")
         run_directory.mkdir(parents=True)
 
         for name, figure in figures.items():
@@ -151,9 +146,7 @@ def main() -> None:
             "mars_landing": asdict(model.mars_landing_parameters),
             "mars_orbit_match_tolerance_m": model.mars_orbit_match_tolerance_m,
         }
-        with (run_directory / "parameters.json").open(
-            "w", encoding="utf-8"
-        ) as stream:
+        with (run_directory / "parameters.json").open("w", encoding="utf-8") as stream:
             json.dump(parameters, stream, ensure_ascii=False, indent=2)
             stream.write("\n")
 

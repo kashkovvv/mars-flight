@@ -88,9 +88,7 @@ def _plot_ascent(result: EarthAscentResult) -> Figure:
     )
 
 
-def _plot_transfer(
-    result: SolarTransferResult, mission: MissionParameters
-) -> Figure:
+def _plot_transfer(result: SolarTransferResult, mission: MissionParameters) -> Figure:
     figure = plt.figure(figsize=(12, 7), layout="constrained")
     grid = figure.add_gridspec(
         3, 2, width_ratios=(1.3, 1.0), height_ratios=(1.0, 1.0, 0.14)
