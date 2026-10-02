@@ -58,6 +58,8 @@ python -m compileall -q mars_flight tests report
 ## Документация
 
 - [Математическая модель и системы отсчёта](docs/model.md)
+- [Сводный конспект формул](docs/theory_summary.md)
+- [Эксперименты с параметрами](docs/experiments.md)
 - [Аналитический перелёт Гомана](docs/hohmann_transfer.md)
 - [Вертикальный взлёт с Земли](docs/earth_ascent.md)
 - [Численный перелёт в поле Солнца](docs/solar_transfer.md)
